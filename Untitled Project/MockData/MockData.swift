@@ -41,12 +41,8 @@ enum MockData {
 
     // MARK: - Previews
 
-    static func previewStore(
-        subject: String = "Swift",
-        period: GoalPeriod = .month,
-        goalStartedDaysAgo: Int = 4,
-        today todayStatus: DayStatus? = nil
-    ) -> LearningStore {
+    static func previewStore() -> LearningStore {
+        let goalStartedDaysAgo = 4
         let calendar = Calendar.current
         let now = Date()
         let today = calendar.startOfDay(for: now)
@@ -58,12 +54,10 @@ enum MockData {
             let loggedAt = calendar.date(byAdding: .hour, value: 19, to: day) ?? day
             logs.append(DayLog(day: day, status: offset == 2 ? .freezed : .learned, loggedAt: loggedAt))
         }
-        if let todayStatus {
-            logs.append(DayLog(day: today, status: todayStatus, loggedAt: now))
-        }
 
         let data = LearningData(
-            goal: LearningGoal(subject: subject, period: period, startDate: goalStart),
+            installDate: logs.first?.day,
+            goal: LearningGoal(subject: "Swift", period: .month, startDate: goalStart),
             logs: logs
         )
         return LearningStore(persistence: InMemoryPersistence(data), calendar: calendar)

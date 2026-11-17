@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the learner wants to learn and for how long.
-struct LearningGoal: Codable, Equatable {
+struct LearningGoal: Codable {
     var subject: String
     var period: GoalPeriod
     /// The moment the goal was created. Its calendar day is the goal's first day.
@@ -20,9 +20,5 @@ struct LearningGoal: Codable, Equatable {
     /// Total number of days the learner needs to log to complete the goal.
     func lengthInDays(in calendar: Calendar) -> Int {
         calendar.dateComponents([.day], from: firstDay(in: calendar), to: endDate(in: calendar)).day ?? 0
-    }
-
-    func hasSameTarget(as other: LearningGoal) -> Bool {
-        subject == other.subject && period == other.period
     }
 }

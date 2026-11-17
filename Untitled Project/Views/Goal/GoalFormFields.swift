@@ -8,39 +8,40 @@ struct GoalFormFields: View {
     @FocusState private var isSubjectFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 32) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("I want to learn")
-                    .font(.title3)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("I want to learn")
+                .font(.callout)
 
-                TextField("Swift", text: $subject)
-                    .font(.title3)
-                    .focused($isSubjectFocused)
-                    .submitLabel(.done)
-                    .autocorrectionDisabled()
+            TextField("Swift", text: $subject)
+                .font(.body.weight(.medium))
+                .focused($isSubjectFocused)
+                .submitLabel(.done)
+                .autocorrectionDisabled()
+                .frame(height: 47)
+                .padding(.top, 5)
 
-                Divider()
-            }
+            Divider()
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("I want to learn it in a")
-                    .font(.title3)
+            Text("I want to learn it in a")
+                .font(.callout)
+                .padding(.top, 30)
 
-                GlassEffectContainer {
-                    HStack(spacing: 8) {
-                        ForEach(GoalPeriod.allCases) { option in
-                            PeriodChip(title: option.title, isSelected: option == period) {
-                                period = option
-                                isSubjectFocused = false
-                            }
+            GlassEffectContainer {
+                HStack(spacing: 12) {
+                    ForEach(GoalPeriod.allCases) { option in
+                        PeriodChip(title: option.title, isSelected: option == period) {
+                            period = option
+                            isSubjectFocused = false
                         }
                     }
                 }
             }
+            .padding(.top, 13)
         }
     }
 }
 
+/// Week / Month / Year. The selected one is orange glass; the others are plain glass.
 private struct PeriodChip: View {
     let title: String
     let isSelected: Bool
@@ -49,21 +50,14 @@ private struct PeriodChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.headline.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .white : .secondary)
-                .frame(width: 70, height: 32)
+                .font(.body.weight(.medium))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary))
+                .padding(.horizontal, 20)
+                .frame(height: Theme.buttonHeight)
+                .contentShape(.capsule)
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
         .glassEffect(isSelected ? .regular.tint(.learnedOrange).interactive() : .regular.interactive(), in: .capsule)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
-}
-
-#Preview {
-    @Previewable @State var subject = ""
-    @Previewable @State var period = GoalPeriod.week
-    GoalFormFields(subject: $subject, period: $period)
-        .padding()
 }

@@ -2,61 +2,53 @@ import SwiftUI
 
 /// Task 1 — the first screen. Shown only once, until the first goal is set.
 struct OnboardingView: View {
-    @Environment(LearningStore.self) private var store
+    @State private var viewModel: OnboardingViewModel
 
-    @State private var subject = ""
-    @State private var period: GoalPeriod = .week
-
-    private var canStart: Bool {
-        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    init(viewModel: OnboardingViewModel) {
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 0) {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 36))
+                    .font(.system(size: 36, weight: .bold))
                     .foregroundStyle(.learnedOrange)
-                    .frame(width: 109, height: 109)
-                    .glassEffect(.regular.tint(.learnedOrange.opacity(0.15)), in: .circle)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 32)
+                    .padding(.top, 57)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Hello **Learner**")
                         .font(.largeTitle)
                     Text("This app will help you learn everyday!")
-                        .font(.title3)
+                        .font(.body)
                         .foregroundStyle(.secondary)
                 }
+                .padding(.top, 80)
 
-                GoalFormFields(subject: $subject, period: $period)
+                GoalFormFields(subject: $viewModel.subject, period: $viewModel.period)
+                    .padding(.top, 28)
             }
             .padding(.horizontal, Theme.screenPadding)
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
-                Button("Start Learning") {
-                    store.startJourney(subject: subject, period: period)
-                }
-                .font(.title3.weight(.medium))
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-                .tint(.learnedOrange)
-                .disabled(!canStart)
+                // Always orange, as in the design; `start()` ignores taps until a subject is typed.
+                GlassCapsuleButton(title: "Start Learning", action: viewModel.start)
 
                 Text("You can edit your desire later")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.bottom, 8)
+            .padding(.bottom, 13)
         }
+        // The keyboard covers the button instead of pushing it over the chips.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 }
 
 #Preview {
-    OnboardingView()
-        .environment(LearningStore(persistence: InMemoryPersistence()))
+    OnboardingView(viewModel: OnboardingViewModel(store: LearningStore(persistence: InMemoryPersistence())))
 }

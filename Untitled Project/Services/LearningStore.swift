@@ -1,11 +1,13 @@
 import Foundation
 import Observation
 
-/// The single source of truth for the app. Views read from it and call its intents.
+/// The single source of truth for the app. ViewModels read from it and call its intents.
 @Observable
 final class LearningStore {
     private(set) var goal: LearningGoal?
     private(set) var now: Date
+    /// The day the app was first opened. Nothing before it is counted or shown.
+    private(set) var installDate: Date
 
     /// Logs keyed by the start of their day, for quick lookups.
     private var logsByDay: [Date: DayLog]
@@ -22,13 +24,17 @@ final class LearningStore {
         clock: @escaping () -> Date = Date.init
     ) {
         let data = persistence.load()
+        let now = clock()
         self.persistence = persistence
         self.calendar = calendar
         self.seedsMockHistory = seedsMockHistory
         self.clock = clock
+        self.now = now
         self.goal = data.goal
-        self.now = clock()
+        self.installDate = data.installDate ?? calendar.startOfDay(for: now)
         self.logsByDay = Dictionary(data.logs.map { ($0.day, $0) }, uniquingKeysWith: { first, _ in first })
+
+        if data.installDate == nil { save() }
     }
 
     // MARK: - Derived state
@@ -36,8 +42,11 @@ final class LearningStore {
     /// Onboarding is shown only until the first goal is created.
     var hasOnboarded: Bool { goal != nil }
 
+    /// Logs from the install day onwards, oldest first.
     var logs: [DayLog] {
-        logsByDay.values.sorted { $0.day < $1.day }
+        logsByDay.values
+            .filter { $0.day >= installDate }
+            .sorted { $0.day < $1.day }
     }
 
     var snapshot: ProgressSnapshot? {
@@ -48,7 +57,9 @@ final class LearningStore {
     var today: Date { calendar.startOfDay(for: now) }
 
     func status(on day: Date) -> DayStatus? {
-        logsByDay[calendar.startOfDay(for: day)]?.status
+        let day = calendar.startOfDay(for: day)
+        guard day >= installDate else { return nil }
+        return logsByDay[day]?.status
     }
 
     // MARK: - Intents
@@ -57,9 +68,10 @@ final class LearningStore {
     func startJourney(subject: String, period: GoalPeriod) {
         refreshDate()
         if seedsMockHistory && logsByDay.isEmpty {
-            for log in MockData.previousMonthsHistory(before: today, calendar: calendar) {
-                logsByDay[log.day] = log
-            }
+            // Demo only: pretend the app was installed months ago and fill that history.
+            let history = MockData.previousMonthsHistory(before: today, calendar: calendar)
+            for log in history { logsByDay[log.day] = log }
+            if let first = history.first { installDate = first.day }
         }
         setGoal(subject: subject, period: period)
     }
@@ -91,6 +103,6 @@ final class LearningStore {
     }
 
     private func save() {
-        persistence.save(LearningData(goal: goal, logs: logs))
+        persistence.save(LearningData(installDate: installDate, goal: goal, logs: logsByDay.values.sorted { $0.day < $1.day }))
     }
 }

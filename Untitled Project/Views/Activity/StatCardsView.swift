@@ -2,13 +2,14 @@ import SwiftUI
 
 /// "4 days Learned" and "1 day Freezed" — counts for the current streak.
 struct StatCardsView: View {
-    let snapshot: ProgressSnapshot
+    let learnedCount: Int
+    let freezedCount: Int
 
     var body: some View {
         GlassEffectContainer {
-            HStack(spacing: 14) {
-                StatCard(icon: "flame.fill", tint: .learnedOrange, count: snapshot.learnedCount, label: "Learned")
-                StatCard(icon: "snowflake", tint: .freezeBlue, count: snapshot.freezedCount, label: "Freezed")
+            HStack(spacing: 12) {
+                StatCard(icon: "flame.fill", tint: .learnedOrange, count: learnedCount, label: "Learned")
+                StatCard(icon: "snowflake", tint: .freezeBlue, count: freezedCount, label: "Freezed")
             }
         }
     }
@@ -21,28 +22,23 @@ private struct StatCard: View {
     let label: String
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(tint)
+                .frame(height: 25)
                 .accessibilityHidden(true)
-            Text(count.daysText)
-                .font(.title3.weight(.semibold))
-                .contentTransition(.numericText())
-            Text(label)
-                .font(.footnote)
+            VStack(spacing: 4) {
+                Text(count.daysText)
+                    .font(.callout.weight(.semibold))
+                    .contentTransition(.numericText())
+                Text(label)
+                    .font(.caption)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
+        .frame(height: Theme.cardHeight)
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .accessibilityElement(children: .combine)
     }
-}
-
-#Preview {
-    StatCardsView(snapshot: ProgressSnapshot(
-        learnedCount: 4, freezedCount: 1, freezesUsed: 1, freezeLimit: 2,
-        todayStatus: nil, goalState: .inProgress, daysLeft: 3
-    ))
-    .padding()
 }

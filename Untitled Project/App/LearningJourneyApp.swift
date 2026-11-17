@@ -6,8 +6,7 @@ struct LearningJourneyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(store)
+            RootView(viewModel: RootViewModel(store: store))
         }
     }
 }
@@ -16,12 +15,11 @@ private extension LearningStore {
     static func makeForApp() -> LearningStore {
         let persistence = UserDefaultsPersistence()
         #if DEBUG
-        // Launch with `-resetData` (Scheme ▸ Arguments) to see onboarding again.
-        if ProcessInfo.processInfo.arguments.contains("-resetData") {
-            persistence.reset()
-        }
-        // Debug builds fill previous months with dummy history (see MockData.swift).
-        return LearningStore(persistence: persistence, seedsMockHistory: true)
+        let arguments = ProcessInfo.processInfo.arguments
+        // Launch with `-resetData` to start from onboarding again (as a fresh install).
+        if arguments.contains("-resetData") { persistence.reset() }
+        // Launch with `-mockHistory` to fill previous months with dummy data for demos.
+        return LearningStore(persistence: persistence, seedsMockHistory: arguments.contains("-mockHistory"))
         #else
         return LearningStore(persistence: persistence)
         #endif

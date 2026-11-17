@@ -7,45 +7,35 @@ struct GoalOutcomeView: View {
     let onRepeat: () -> Void
 
     var body: some View {
-        VStack(spacing: 40) {
-            VStack(spacing: 8) {
-                Image(systemName: isCompleted ? "hands.clap.fill" : "xmark.seal")
-                    .font(.system(size: 44))
-                    .foregroundStyle(.learnedOrange)
-                    .symbolEffect(.bounce, value: state)
-                    .padding(.bottom, 8)
-                    .accessibilityHidden(true)
+        VStack(spacing: 0) {
+            Image(systemName: isCompleted ? "hands.clap.fill" : "xmark.seal")
+                .font(.system(size: 40))
+                .foregroundStyle(.learnedOrange)
+                .symbolEffect(.bounce, value: state)
+                .frame(height: 51)
+                .accessibilityHidden(true)
 
+            VStack(spacing: 0) {
                 Text(isCompleted ? "Well done!" : "You didn't reach your goal this time.")
-                    .font(.headline)
+                    .font(.callout.bold())
                 Text(isCompleted ? "Ready for your next goal?" : "Want to set another goal?")
-                    .font(.subheadline)
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .frame(minHeight: 28)
             }
             .multilineTextAlignment(.center)
+            .padding(.top, 20)
 
-            VStack(spacing: 16) {
-                Button("Set a goal", systemImage: "pencil.and.outline", action: onNewGoal)
-                    .font(.title3.weight(.medium))
-                    .buttonStyle(.glassProminent)
-                    .controlSize(.large)
-                    .tint(.learnedOrange)
+            GlassCapsuleButton(title: "Set a goal", systemImage: "pencil.and.outline", height: 50, action: onNewGoal)
+                .padding(.top, 64)
 
-                Button("Set same learning goal and duration", action: onRepeat)
-                    .font(.subheadline)
-                    .tint(.learnedOrange)
-            }
+            // Task 3 in the design notes: "Set new/same task when the goal gets completed".
+            Button("Set same learning goal and duration", action: onRepeat)
+                .font(.subheadline)
+                .tint(.learnedOrange)
+                .padding(.top, 16)
         }
-        .padding(.top, 48)
     }
 
     private var isCompleted: Bool { state == .completed }
-}
-
-#Preview("Completed") {
-    GoalOutcomeView(state: .completed, onNewGoal: {}, onRepeat: {})
-}
-
-#Preview("Not met") {
-    GoalOutcomeView(state: .notMet, onNewGoal: {}, onRepeat: {})
 }

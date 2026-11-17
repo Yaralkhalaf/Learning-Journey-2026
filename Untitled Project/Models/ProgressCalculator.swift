@@ -8,7 +8,7 @@ enum GoalState: Equatable {
 }
 
 /// A read-only summary of the learner's progress at a given moment.
-struct ProgressSnapshot: Equatable {
+struct ProgressSnapshot {
     /// Learned days in the current streak.
     var learnedCount: Int
     /// Freezed days in the current streak.

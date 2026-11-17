@@ -3,79 +3,45 @@ import SwiftUI
 /// Task 2 — log today as learned or freezed.
 /// Both buttons are disabled once today is logged; Freeze is also disabled when no freezes are left.
 struct LogActionsView: View {
-    @Environment(LearningStore.self) private var store
-    let snapshot: ProgressSnapshot
+    let viewModel: ActivityViewModel
 
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 0) {
             Button {
-                withAnimation { store.logToday(as: .learned) }
+                withAnimation { viewModel.logLearned() }
             } label: {
-                Text(learnedTitle)
-                    .font(.title2.weight(.bold))
+                Text(viewModel.learnedButtonTitle)
+                    .font(.body.bold())
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(learnedForeground)
+                    .foregroundStyle(isLearnedToday ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
                     .frame(width: Theme.logButtonSize, height: Theme.logButtonSize)
                     .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            .glassEffect(learnedGlass, in: .circle)
-            .disabled(!snapshot.canLogLearned)
-            .sensoryFeedback(.success, trigger: snapshot.todayStatus)
+            // Orange until today is logged as learned (a freezed day keeps the orange look, as in the design).
+            .glassEffect(isLearnedToday ? .regular : .regular.tint(.learnedOrange).interactive(), in: .circle)
+            // Block taps without the system's faded look, so a freezed day keeps the design's white label.
+            .allowsHitTesting(viewModel.canLogLearned)
+            .accessibilityAddTraits(viewModel.canLogLearned ? [] : .isStaticText)
+            .sensoryFeedback(.success, trigger: viewModel.todayStatus)
 
-            VStack(spacing: 12) {
-                Button {
-                    withAnimation { store.logToday(as: .freezed) }
-                } label: {
-                    Text(snapshot.todayStatus == .freezed ? "Freezed for a day" : "Freeze for a day")
-                        .font(.title3.weight(.medium))
-                        .frame(width: Theme.wideButtonWidth - 32, height: 32)
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-                .tint(snapshot.canFreeze ? .freezeBlue : .secondary.opacity(0.3))
-                .disabled(!snapshot.canFreeze)
-
-                Text("\(snapshot.freezesUsed) out of \(snapshot.freezeLimit) Freezes used")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.numericText())
+            GlassCapsuleButton(
+                title: viewModel.freezeButtonTitle,
+                tint: .freezeBlue,
+                width: Theme.wideButtonWidth,
+                isEnabled: viewModel.canFreeze
+            ) {
+                withAnimation { viewModel.freezeToday() }
             }
-        }
-        .padding(.top, 8)
-    }
+            .padding(.top, 48)
 
-    private var learnedTitle: String {
-        switch snapshot.todayStatus {
-        case .learned: "Logged as Learned"
-        case .freezed: "Day Freezed"
-        case nil: "Log as Learned"
+            Text(viewModel.freezesUsedText)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .padding(.top, 16)
         }
     }
 
-    private var learnedForeground: Color {
-        switch snapshot.todayStatus {
-        case .learned: .secondary
-        case .freezed: .freezeBlue
-        case nil: .white
-        }
-    }
-
-    private var learnedGlass: Glass {
-        switch snapshot.todayStatus {
-        case .learned: .regular
-        case .freezed: .regular.tint(.freezeBlue.opacity(0.2))
-        case nil: .regular.tint(.learnedOrange).interactive()
-        }
-    }
-}
-
-#Preview("Not logged") {
-    let store = MockData.previewStore()
-    LogActionsView(snapshot: store.snapshot!).environment(store)
-}
-
-#Preview("Freezed") {
-    let store = MockData.previewStore(today: .freezed)
-    LogActionsView(snapshot: store.snapshot!).environment(store)
+    private var isLearnedToday: Bool { viewModel.todayStatus == .learned }
 }

@@ -1,100 +1,87 @@
 import SwiftUI
 
-/// Destinations reachable from the Activity page.
-enum ActivityRoute: Hashable {
-    case calendar
-    case editGoal
-    case newGoal
-}
-
-/// The main screen: this week, streak counters and today's logging actions.
+/// Task 2 — the main screen: this week, streak counters and today's logging actions.
 struct ActivityView: View {
-    @Environment(LearningStore.self) private var store
-    @State private var path: [ActivityRoute] = []
+    @State private var viewModel: ActivityViewModel
+
+    init(viewModel: ActivityViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $viewModel.path) {
             ScrollView {
-                if let goal = store.goal, let snapshot = store.snapshot {
-                    VStack(spacing: 24) {
-                        GoalHeader(goal: goal, snapshot: snapshot)
-                        WeekStripView()
-                        StatCardsView(snapshot: snapshot)
+                VStack(spacing: 0) {
+                    ActivityHeader(
+                        date: viewModel.today,
+                        onCalendar: viewModel.showCalendar,
+                        onEditGoal: viewModel.editGoal
+                    )
 
-                        if snapshot.goalState == .inProgress {
-                            LogActionsView(snapshot: snapshot)
+                    if viewModel.hasGoal {
+                        WeekStripView(days: viewModel.weekDays)
+                            .padding(.top, 15)
+
+                        StatCardsView(learnedCount: viewModel.learnedCount, freezedCount: viewModel.freezedCount)
+                            .padding(.top, 12)
+
+                        if viewModel.goalState == .inProgress {
+                            LogActionsView(viewModel: viewModel)
+                                .padding(.top, 48)
                         } else {
-                            GoalOutcomeView(state: snapshot.goalState) {
-                                path.append(.newGoal)
-                            } onRepeat: {
-                                store.setGoal(subject: goal.subject, period: goal.period)
-                            }
+                            GoalOutcomeView(
+                                state: viewModel.goalState,
+                                onNewGoal: viewModel.setNewGoal,
+                                onRepeat: viewModel.repeatGoal
+                            )
+                            .padding(.top, 64)
                         }
                     }
-                    .padding(.horizontal, Theme.screenPadding)
-                    .padding(.bottom, 24)
                 }
+                .padding(.horizontal, Theme.contentPadding)
+                .padding(.bottom, 24)
             }
-            .navigationTitle("Activity")
-            .navigationSubtitle(Text(store.now, format: .dateTime.weekday(.wide).day().month(.wide)))
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button("Activities calendar", systemImage: "calendar") {
-                        path.append(.calendar)
-                    }
-                    Button("Learning goal", systemImage: "pencil.and.outline") {
-                        path.append(.editGoal)
-                    }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: ActivityRoute.self) { route in
                 switch route {
                 case .calendar:
-                    ActivitiesCalendarView()
-                case .editGoal:
-                    GoalEditorView(goal: store.goal, requiresConfirmation: store.snapshot?.goalState == .inProgress)
-                case .newGoal:
-                    GoalEditorView(goal: store.goal, requiresConfirmation: false)
+                    ActivitiesCalendarView(viewModel: viewModel.makeCalendarViewModel())
+                case .editGoal, .newGoal:
+                    GoalEditorView(viewModel: viewModel.makeGoalEditorViewModel(for: route))
                 }
             }
         }
     }
 }
 
-/// Shows which goal the learner is working on (the name they typed in onboarding).
-private struct GoalHeader: View {
-    let goal: LearningGoal
-    let snapshot: ProgressSnapshot
+/// "Activity" + today's date on the left, calendar and goal buttons on the right.
+private struct ActivityHeader: View {
+    let date: Date
+    let onCalendar: () -> Void
+    let onEditGoal: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "target")
-            Text("Learning **\(goal.subject)**")
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Activity")
+                    .font(.largeTitle.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text(date, format: .dateTime.weekday(.wide).day().month(.wide))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+
             Spacer()
-            Text(detail)
-                .foregroundStyle(Color.secondary)
-        }
-        .font(.subheadline)
-        .foregroundStyle(.learnedOrange)
-        .accessibilityElement(children: .combine)
-    }
 
-    private var detail: String {
-        switch snapshot.goalState {
-        case .inProgress: "\(snapshot.daysLeft.daysText) left this \(goal.period.title.lowercased())"
-        case .completed, .notMet: "\(goal.period.title) ended"
+            HStack(spacing: 12) {
+                GlassCircleButton(title: "Activities calendar", systemImage: "calendar", action: onCalendar)
+                GlassCircleButton(title: "Learning goal", systemImage: "pencil.and.outline", action: onEditGoal)
+            }
         }
+        .padding(.leading, 2)
     }
 }
 
-#Preview("In progress") {
-    ActivityView().environment(MockData.previewStore())
-}
-
-#Preview("Learned today") {
-    ActivityView().environment(MockData.previewStore(today: .learned))
-}
-
-#Preview("Goal ended") {
-    ActivityView().environment(MockData.previewStore(period: .week, goalStartedDaysAgo: 7))
+#Preview {
+    ActivityView(viewModel: ActivityViewModel(store: MockData.previewStore()))
 }
