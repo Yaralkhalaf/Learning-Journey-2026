@@ -8,6 +8,8 @@ final class LearningStore {
     private(set) var now: Date
     /// The day the app was first opened. Nothing before it is counted or shown.
     private(set) var installDate: Date
+    /// Goals that were replaced, oldest first. Used to show which goal a past day belonged to.
+    private(set) var pastGoals: [LearningGoal]
 
     /// Logs keyed by the start of their day, for quick lookups.
     private var logsByDay: [Date: DayLog]
@@ -32,6 +34,7 @@ final class LearningStore {
         self.now = now
         self.goal = data.goal
         self.installDate = data.installDate ?? calendar.startOfDay(for: now)
+        self.pastGoals = data.pastGoals ?? []
         self.logsByDay = Dictionary(data.logs.map { ($0.day, $0) }, uniquingKeysWith: { first, _ in first })
 
         if data.installDate == nil { save() }
@@ -62,6 +65,16 @@ final class LearningStore {
         return logsByDay[day]?.status
     }
 
+    /// The goal that was running on `day`, if any.
+    /// A newer goal replaces an older one from its first day, so the latest goal that had
+    /// started by `day` wins, as long as its period had not ended yet.
+    func goal(on day: Date) -> LearningGoal? {
+        let day = calendar.startOfDay(for: day)
+        let allGoals = pastGoals + (goal.map { [$0] } ?? [])
+        guard let candidate = allGoals.last(where: { $0.firstDay(in: calendar) <= day }) else { return nil }
+        return day < candidate.endDate(in: calendar) ? candidate : nil
+    }
+
     // MARK: - Intents
 
     /// Called once from onboarding.
@@ -71,7 +84,10 @@ final class LearningStore {
             // Demo only: pretend the app was installed months ago and fill that history.
             let history = MockData.previousMonthsHistory(before: today, calendar: calendar)
             for log in history { logsByDay[log.day] = log }
-            if let first = history.first { installDate = first.day }
+            if let first = history.first {
+                installDate = first.day
+                pastGoals = MockData.previousGoals(from: first.day, before: today, calendar: calendar)
+            }
         }
         setGoal(subject: subject, period: period)
     }
@@ -79,6 +95,7 @@ final class LearningStore {
     /// Replaces the current goal. The streak starts over from today.
     func setGoal(subject: String, period: GoalPeriod) {
         refreshDate()
+        if let goal { pastGoals.append(goal) }
         goal = LearningGoal(
             subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
             period: period,
@@ -87,13 +104,17 @@ final class LearningStore {
         save()
     }
 
+    /// Logs today as learned or freezed. If today is already logged the other way,
+    /// it is switched (to fix a wrong tap).
     func logToday(as status: DayStatus) {
         refreshDate()
         guard let snapshot else { return }
         let isAllowed = status == .learned ? snapshot.canLogLearned : snapshot.canFreeze
         guard isAllowed else { return }
 
-        logsByDay[today] = DayLog(day: today, status: status, loggedAt: now)
+        // When switching, keep the first tap's time so the 32-hour streak rule doesn't change.
+        let loggedAt = logsByDay[today]?.loggedAt ?? now
+        logsByDay[today] = DayLog(day: today, status: status, loggedAt: loggedAt)
         save()
     }
 
@@ -103,6 +124,11 @@ final class LearningStore {
     }
 
     private func save() {
-        persistence.save(LearningData(installDate: installDate, goal: goal, logs: logsByDay.values.sorted { $0.day < $1.day }))
+        persistence.save(LearningData(
+            installDate: installDate,
+            goal: goal,
+            pastGoals: pastGoals,
+            logs: logsByDay.values.sorted { $0.day < $1.day }
+        ))
     }
 }

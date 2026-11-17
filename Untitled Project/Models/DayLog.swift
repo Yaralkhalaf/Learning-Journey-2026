@@ -20,5 +20,7 @@ struct LearningData: Codable {
     /// Start of the day the app was first opened. Everything (calendar, counts) starts here.
     var installDate: Date?
     var goal: LearningGoal?
+    /// Goals that were replaced, oldest first. Optional so data saved before this existed still loads.
+    var pastGoals: [LearningGoal]?
     var logs: [DayLog] = []
 }

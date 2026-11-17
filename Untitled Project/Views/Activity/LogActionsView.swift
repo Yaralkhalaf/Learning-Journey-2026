@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Task 2 — log today as learned or freezed.
-/// Both buttons are disabled once today is logged; Freeze is also disabled when no freezes are left.
+/// The chosen button is disabled; tapping the other one switches today's log (to fix a wrong tap).
+/// Freeze is also disabled when no freezes are left.
 struct LogActionsView: View {
     let viewModel: ActivityViewModel
 
@@ -18,9 +19,10 @@ struct LogActionsView: View {
                     .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            // Orange until today is logged as learned (a freezed day keeps the orange look, as in the design).
+            // Orange until today is logged as learned. A freezed day stays orange (as in the design)
+            // because tapping it switches the day to learned.
             .glassEffect(isLearnedToday ? .regular : .regular.tint(.learnedOrange).interactive(), in: .circle)
-            // Block taps without the system's faded look, so a freezed day keeps the design's white label.
+            // Block taps once today is learned, without the system's faded look on the label.
             .allowsHitTesting(viewModel.canLogLearned)
             .accessibilityAddTraits(viewModel.canLogLearned ? [] : .isStaticText)
             .sensoryFeedback(.success, trigger: viewModel.todayStatus)

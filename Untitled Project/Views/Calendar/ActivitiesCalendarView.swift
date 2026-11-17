@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Task 5 — every month since the app was installed. View only: no interaction with the days.
+/// Task 5 — every month since the app was installed. Tap a logged day to see its goal.
 struct ActivitiesCalendarView: View {
     @State private var viewModel: CalendarViewModel
 
@@ -12,7 +12,12 @@ struct ActivitiesCalendarView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(viewModel.months) { month in
-                    MonthGridView(month: month, weekdaySymbols: viewModel.weekdaySymbols)
+                    MonthGridView(
+                        month: month,
+                        weekdaySymbols: viewModel.weekdaySymbols,
+                        selectedDate: $viewModel.selectedDate,
+                        details: viewModel.details(for:)
+                    )
                     Divider()
                 }
             }

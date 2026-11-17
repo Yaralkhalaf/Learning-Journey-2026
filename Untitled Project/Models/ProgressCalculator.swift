@@ -22,20 +22,27 @@ struct ProgressSnapshot {
 
     var hasFreezesLeft: Bool { freezesUsed < freezeLimit }
     var isTodayLogged: Bool { todayStatus != nil }
-    var canLogLearned: Bool { goalState == .inProgress && !isTodayLogged }
-    var canFreeze: Bool { canLogLearned && hasFreezesLeft }
+
+    /// Today can be logged as learned, or switched from freezed to learned (fixes a wrong tap).
+    var canLogLearned: Bool { goalState == .inProgress && todayStatus != .learned }
+    /// Today can be freezed, or switched from learned to freezed, while a freeze is left.
+    /// (A freezed today is already counted in `freezesUsed`, so switching back gives it back.)
+    var canFreeze: Bool { goalState == .inProgress && todayStatus != .freezed && hasFreezesLeft }
 }
 
 /// Pure business rules. No storage, no UI — easy to reason about and to test.
 ///
 /// Rules (from the design notes):
 /// - Freezes: 2 per week, 8 per month, 96 per year.
-/// - The streak resets when more than 32 hours pass without logging a day
-///   (learned or freezed), or when the learning goal is updated.
-/// - Logging buttons are disabled once today is logged or when all freezes are used.
-///   They are enabled again at midnight.
+/// - The streak ends when more than 32 hours pass without logging (learned or freezed),
+///   counted from the moment of the last tap — even if the learner logged "yesterday".
+///   It also resets when the learning goal is updated.
+/// - Today is logged once, as learned or freezed. A wrong tap can be fixed by tapping the
+///   other button (switching to freezed needs a freeze left). The chosen button is disabled,
+///   and Freeze is disabled when all freezes are used. Both are fresh again at midnight.
 /// - A goal is completed when every day of its period is logged.
 struct ProgressCalculator {
+    /// The longest time allowed between two logs (or since the last log) before the streak ends.
     static let streakGraceInterval: TimeInterval = 32 * 60 * 60
 
     let calendar: Calendar
@@ -47,9 +54,13 @@ struct ProgressCalculator {
         // Once the goal ends, freeze the numbers as they were on its last day.
         let referenceDate = hasEnded ? endDate : now
 
-        let goalLogs = logs
+        // Every log on a day inside the goal's period: used for "already logged today" and completion.
+        let daysInPeriod = logs
             .filter { $0.day >= firstDay && $0.day < endDate }
             .sorted { $0.day < $1.day }
+        // Only logs made after the goal was set: the streak and freezes start over with a new goal,
+        // even when today was already logged under the previous goal.
+        let goalLogs = daysInPeriod.filter { $0.loggedAt >= goal.startDate }
 
         let streak = currentStreak(in: goalLogs, asOf: referenceDate)
         let today = calendar.startOfDay(for: now)
@@ -59,8 +70,8 @@ struct ProgressCalculator {
             freezedCount: streak.count { $0.status == .freezed },
             freezesUsed: goalLogs.count { $0.status == .freezed },
             freezeLimit: goal.period.freezeLimit,
-            todayStatus: goalLogs.first { $0.day == today }?.status,
-            goalState: goalState(hasEnded: hasEnded, loggedDays: goalLogs.count, goal: goal),
+            todayStatus: daysInPeriod.first { $0.day == today }?.status,
+            goalState: goalState(hasEnded: hasEnded, loggedDays: daysInPeriod.count, goal: goal),
             daysLeft: max(0, dayDistance(from: today, to: endDate))
         )
     }
@@ -69,25 +80,23 @@ struct ProgressCalculator {
 
     /// The unbroken run of logs that ends at `date`, or an empty array if the streak was lost.
     func currentStreak(in sortedLogs: [DayLog], asOf date: Date) -> [DayLog] {
-        guard let last = sortedLogs.last,
-              isContinuous(previous: last, nextDay: calendar.startOfDay(for: date), nextMoment: date)
-        else { return [] }
+        // 1. Is the streak still alive right now? (last log no more than 32 hours ago)
+        guard let last = sortedLogs.last, isContinuous(from: last, to: date) else { return [] }
 
+        // 2. Walk back from the newest log while each gap is 32 hours or less.
         var startIndex = sortedLogs.count - 1
         while startIndex > 0 {
             let previous = sortedLogs[startIndex - 1]
             let current = sortedLogs[startIndex]
-            guard isContinuous(previous: previous, nextDay: current.day, nextMoment: current.loggedAt) else { break }
+            guard isContinuous(from: previous, to: current.loggedAt) else { break }
             startIndex -= 1
         }
         return Array(sortedLogs[startIndex...])
     }
 
-    /// Two moments keep the streak alive when they are on consecutive days,
-    /// or when no more than 32 hours separate them.
-    private func isContinuous(previous: DayLog, nextDay: Date, nextMoment: Date) -> Bool {
-        dayDistance(from: previous.day, to: nextDay) <= 1
-            || nextMoment.timeIntervalSince(previous.loggedAt) <= Self.streakGraceInterval
+    /// The streak continues only if no more than 32 hours passed since `log` was tapped.
+    private func isContinuous(from log: DayLog, to moment: Date) -> Bool {
+        moment.timeIntervalSince(log.loggedAt) <= Self.streakGraceInterval
     }
 
     // MARK: - Goal

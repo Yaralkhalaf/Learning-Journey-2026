@@ -8,7 +8,7 @@ struct GoalOutcomeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Image(systemName: isCompleted ? "hands.clap.fill" : "xmark.seal")
+            Image(systemName: isCompleted ? "hands.and.sparkles.fill" : "xmark.seal")
                 .font(.system(size: 40))
                 .foregroundStyle(.learnedOrange)
                 .symbolEffect(.bounce, value: state)

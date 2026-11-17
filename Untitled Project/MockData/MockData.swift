@@ -30,6 +30,24 @@ enum MockData {
         return logs
     }
 
+    /// Back-to-back past goals from `start` until `date`, so every mock day belongs to a goal.
+    static func previousGoals(from start: Date, before date: Date, calendar: Calendar) -> [LearningGoal] {
+        let plan: [(String, GoalPeriod)] = [
+            ("Swift", .month), ("SwiftUI", .week), ("UI Design", .week), ("Arabic", .month), ("Figma", .week),
+        ]
+        let end = calendar.startOfDay(for: date)
+        var goals: [LearningGoal] = []
+        var goalStart = calendar.startOfDay(for: start)
+
+        while goalStart < end {
+            let (subject, period) = plan[goals.count % plan.count]
+            let goal = LearningGoal(subject: subject, period: period, startDate: goalStart)
+            goals.append(goal)
+            goalStart = goal.endDate(in: calendar)
+        }
+        return goals
+    }
+
     /// A repeating 23-day pattern: mostly learned, a couple of freezes and a short break.
     private static func status(forDayIndex index: Int) -> DayStatus? {
         switch index % 23 {
@@ -55,9 +73,11 @@ enum MockData {
             logs.append(DayLog(day: day, status: offset == 2 ? .freezed : .learned, loggedAt: loggedAt))
         }
 
+        let installDate = logs.first?.day ?? today
         let data = LearningData(
-            installDate: logs.first?.day,
+            installDate: installDate,
             goal: LearningGoal(subject: "Swift", period: .month, startDate: goalStart),
+            pastGoals: previousGoals(from: installDate, before: goalStart, calendar: calendar),
             logs: logs
         )
         return LearningStore(persistence: InMemoryPersistence(data), calendar: calendar)

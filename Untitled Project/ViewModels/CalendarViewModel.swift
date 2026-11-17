@@ -11,9 +11,13 @@ struct CalendarMonth: Identifiable {
     var id: Date { start }
 }
 
-/// Task 5 — every month since the app was installed. View only.
+/// Task 5 — every month since the app was installed.
+/// Tapping a logged day shows which goal it belonged to and how long that goal was.
 @Observable
 final class CalendarViewModel {
+    /// The day whose details are showing, if any.
+    var selectedDate: Date?
+
     private let store: LearningStore
 
     init(store: LearningStore) {
@@ -21,6 +25,33 @@ final class CalendarViewModel {
     }
 
     private var calendar: Calendar { store.calendar }
+
+    // MARK: - Day details
+
+    func details(for date: Date) -> DayDetails {
+        let goal = store.goal(on: date)
+        let firstDay = goal?.firstDay(in: calendar)
+        var lastDay: Date?
+
+        if let goal, let firstDay {
+            // A goal ends at its period's end, or earlier if the learner set a new goal.
+            let allGoals = store.pastGoals + (store.goal.map { [$0] } ?? [])
+            let nextStart = allGoals
+                .map { $0.firstDay(in: calendar) }
+                .filter { $0 > firstDay }
+                .min()
+            let end = min(goal.endDate(in: calendar), nextStart ?? .distantFuture)
+            lastDay = calendar.date(byAdding: .day, value: -1, to: end)
+        }
+
+        return DayDetails(
+            date: date,
+            status: store.status(on: date),
+            goal: goal,
+            goalFirstDay: firstDay,
+            goalLastDay: lastDay
+        )
+    }
 
     /// "SUN MON …" rotated to match the calendar's first weekday.
     var weekdaySymbols: [String] {
@@ -48,7 +79,13 @@ final class CalendarViewModel {
         let range = calendar.range(of: .day, in: .month, for: start) ?? 1..<1
         let days = range.compactMap { number -> CalendarDay? in
             guard let date = calendar.date(byAdding: .day, value: number - 1, to: start) else { return nil }
-            return CalendarDay(date: date, status: store.status(on: date))
+            let status = store.status(on: date)
+            let isPast = date <= store.today
+            return CalendarDay(
+                date: date,
+                status: status,
+                isSelectable: isPast && (status != nil || store.goal(on: date) != nil)
+            )
         }
         let weekday = calendar.component(.weekday, from: start)
         let leadingBlanks = (weekday - calendar.firstWeekday + 7) % 7
