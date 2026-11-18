@@ -14,6 +14,7 @@ struct ActivityView: View {
                 VStack(spacing: 0) {
                     ActivityHeader(
                         date: viewModel.today,
+                        // Calendar step 2: the header's calendar button calls the ViewModel's showCalendar().
                         onCalendar: viewModel.showCalendar,
                         onEditGoal: viewModel.editGoal
                     )
@@ -42,9 +43,11 @@ struct ActivityView: View {
                 .padding(.bottom, 24)
             }
             .toolbar(.hidden, for: .navigationBar)
+            // Calendar step 4: when a route is added to `path`, this decides which page opens.
             .navigationDestination(for: ActivityRoute.self) { route in
                 switch route {
                 case .calendar:
+                    // Opens the Activities calendar with its own ViewModel (made from the same store).
                     ActivitiesCalendarView(viewModel: viewModel.makeCalendarViewModel())
                 case .editGoal, .newGoal:
                     GoalEditorView(viewModel: viewModel.makeGoalEditorViewModel(for: route))
@@ -74,6 +77,7 @@ private struct ActivityHeader: View {
             Spacer()
 
             HStack(spacing: 12) {
+                // Calendar step 1: the round calendar button at the top right. Tapping it runs `onCalendar`.
                 GlassCircleButton(title: "Activities calendar", systemImage: "calendar", action: onCalendar)
                 GlassCircleButton(title: "Learning goal", systemImage: "pencil.and.outline", action: onEditGoal)
             }

@@ -11,13 +11,17 @@ struct ActivitiesCalendarView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
+                // Calendar step 5: draw one month grid for every month since the app was installed.
                 ForEach(viewModel.months) { month in
                     MonthGridView(
                         month: month,
                         weekdaySymbols: viewModel.weekdaySymbols,
+                        // Shared with the ViewModel: which day's popover is open (nil = none).
                         selectedDate: $viewModel.selectedDate,
+                        // Lets the grid ask the ViewModel for a day's details when it is tapped.
                         details: viewModel.details(for:)
                     )
+                    // A thin line between months.
                     Divider()
                 }
             }

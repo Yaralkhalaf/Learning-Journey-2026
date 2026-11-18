@@ -65,13 +65,34 @@ final class LearningStore {
         return logsByDay[day]?.status
     }
 
+    /// Every goal ever set: the old ones plus the current one, oldest first.
+    var allGoals: [LearningGoal] {
+        pastGoals + (goal.map { [$0] } ?? [])
+    }
+
+    /// The last day `goal` really ran: the end of its period,
+    /// or the day before a newer goal replaced it, whichever comes first.
+    func lastDay(of goal: LearningGoal) -> Date? {
+        let firstDay = goal.firstDay(in: calendar)
+        // The first day of the next goal set after this one, if any.
+        let nextStart = allGoals
+            .map { $0.firstDay(in: calendar) }
+            .filter { $0 > firstDay }
+            .min()
+        let end = min(goal.endDate(in: calendar), nextStart ?? .distantFuture)
+        // `end` is the first day the goal no longer runs, so step back one day.
+        return calendar.date(byAdding: .day, value: -1, to: end)
+    }
+
     /// The goal that was running on `day`, if any.
     /// A newer goal replaces an older one from its first day, so the latest goal that had
     /// started by `day` wins, as long as its period had not ended yet.
+    /// Used by the calendar's day popover.
     func goal(on day: Date) -> LearningGoal? {
         let day = calendar.startOfDay(for: day)
-        let allGoals = pastGoals + (goal.map { [$0] } ?? [])
+        // The newest goal that had already started on that day.
         guard let candidate = allGoals.last(where: { $0.firstDay(in: calendar) <= day }) else { return nil }
+        // Only if that goal hadn't ended yet on that day.
         return day < candidate.endDate(in: calendar) ? candidate : nil
     }
 
@@ -95,6 +116,7 @@ final class LearningStore {
     /// Replaces the current goal. The streak starts over from today.
     func setGoal(subject: String, period: GoalPeriod) {
         refreshDate()
+        // Keep the old goal in the history, so the calendar can still show it for its days.
         if let goal { pastGoals.append(goal) }
         goal = LearningGoal(
             subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),

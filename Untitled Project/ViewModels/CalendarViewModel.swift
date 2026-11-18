@@ -28,28 +28,19 @@ final class CalendarViewModel {
 
     // MARK: - Day details
 
+    /// Calendar step 8: builds what the popover shows for a tapped day —
+    /// how it was logged, which goal was running, and the dates that goal ran.
     func details(for date: Date) -> DayDetails {
+        // Ask the store which goal was running on this day.
         let goal = store.goal(on: date)
-        let firstDay = goal?.firstDay(in: calendar)
-        var lastDay: Date?
-
-        if let goal, let firstDay {
-            // A goal ends at its period's end, or earlier if the learner set a new goal.
-            let allGoals = store.pastGoals + (store.goal.map { [$0] } ?? [])
-            let nextStart = allGoals
-                .map { $0.firstDay(in: calendar) }
-                .filter { $0 > firstDay }
-                .min()
-            let end = min(goal.endDate(in: calendar), nextStart ?? .distantFuture)
-            lastDay = calendar.date(byAdding: .day, value: -1, to: end)
-        }
 
         return DayDetails(
             date: date,
             status: store.status(on: date),
             goal: goal,
-            goalFirstDay: firstDay,
-            goalLastDay: lastDay
+            goalFirstDay: goal?.firstDay(in: calendar),
+            // The store knows when a goal ended (its period's end, or earlier if a new goal replaced it).
+            goalLastDay: goal.flatMap(store.lastDay(of:))
         )
     }
 
@@ -60,12 +51,14 @@ final class CalendarViewModel {
         return Array(symbols[shift...] + symbols[..<shift])
     }
 
-    /// From the month the app was installed up to the current month.
+    /// The months the calendar shows: from the month the app was installed up to the current month.
     var months: [CalendarMonth] {
+        // The first day of this month, and of the month the app was installed.
         guard let current = calendar.dateInterval(of: .month, for: store.now)?.start else { return [] }
         let installMonth = calendar.dateInterval(of: .month, for: store.installDate)?.start ?? current
         var month = min(installMonth, current)
 
+        // Add one month at a time until we reach the current month.
         var result: [CalendarMonth] = []
         while month <= current {
             result.append(makeMonth(startingAt: month))
@@ -75,7 +68,9 @@ final class CalendarViewModel {
         return result
     }
 
+    /// Builds one month: every day with its color (learned / freezed / none) and whether it can be tapped.
     private func makeMonth(startingAt start: Date) -> CalendarMonth {
+        // How many days this month has (28–31).
         let range = calendar.range(of: .day, in: .month, for: start) ?? 1..<1
         let days = range.compactMap { number -> CalendarDay? in
             guard let date = calendar.date(byAdding: .day, value: number - 1, to: start) else { return nil }
@@ -84,9 +79,11 @@ final class CalendarViewModel {
             return CalendarDay(
                 date: date,
                 status: status,
+                // Only past days that were logged or had a goal can be tapped.
                 isSelectable: isPast && (status != nil || store.goal(on: date) != nil)
             )
         }
+        // How many empty cells go before day 1 (e.g. a month starting on Wednesday needs 3).
         let weekday = calendar.component(.weekday, from: start)
         let leadingBlanks = (weekday - calendar.firstWeekday + 7) % 7
         return CalendarMonth(start: start, leadingBlanks: leadingBlanks, days: days)

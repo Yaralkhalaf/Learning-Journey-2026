@@ -3,6 +3,7 @@ import Observation
 
 /// Destinations reachable from the Activity page.
 enum ActivityRoute: Hashable {
+    /// The Activities calendar page.
     case calendar
     case editGoal
     case newGoal
@@ -76,6 +77,7 @@ final class ActivityViewModel {
 
     // MARK: - Navigation
 
+    /// Calendar step 3: adding `.calendar` to the navigation path tells the NavigationStack to open the calendar.
     func showCalendar() { path.append(.calendar) }
     func editGoal() { path.append(.editGoal) }
     func setNewGoal() { path.append(.newGoal) }
@@ -92,6 +94,7 @@ final class ActivityViewModel {
         return GoalEditorViewModel(store: store, requiresConfirmation: requiresConfirmation)
     }
 
+    /// Creates the calendar's ViewModel and gives it the same store, so it sees the same goals and logs.
     func makeCalendarViewModel() -> CalendarViewModel {
         CalendarViewModel(store: store)
     }
