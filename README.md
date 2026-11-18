@@ -102,8 +102,3 @@ Untitled Project/
 - **ViewModel**: gets the data ready for one screen and handles its buttons.
 - **View**: only draws what its ViewModel gives it.
 
----
-
-## 👩‍💻 Author
-
-Made by **Yara Alkhalaf**.
